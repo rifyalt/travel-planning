@@ -3,7 +3,6 @@ import pandas as pd
 import gdown
 import os
 from io import BytesIO
-import matplotlib.pyplot as plt
 
 # --- Konfigurasi halaman ---
 st.set_page_config(page_title="Join Data Excel", page_icon="📊", layout="wide")
@@ -82,52 +81,44 @@ if not df_all.empty:
     # --- Sidebar Filters ---
     st.sidebar.header("🔍 Filter Data")
 
+    # Dropdown untuk Check In Date (pilih salah satu)
     if "Check In Date" in df_all.columns:
-        min_ci, max_ci = df_all["Check In Date"].min(), df_all["Check In Date"].max()
-        checkin_range = st.sidebar.date_input("Check In Date Range", [min_ci, max_ci])
-        if len(checkin_range) == 2:
-            df_all = df_all[(df_all["Check In Date"] >= pd.to_datetime(checkin_range[0])) &
-                            (df_all["Check In Date"] <= pd.to_datetime(checkin_range[1]))]
+        ci_options = df_all["Check In Date"].dropna().dt.date.unique()
+        ci_selected = st.sidebar.selectbox("Pilih Check In Date", sorted(ci_options))
+        df_all = df_all[df_all["Check In Date"].dt.date == ci_selected]
 
+    # Dropdown untuk Check Out Date (pilih salah satu)
     if "Check Out Date" in df_all.columns:
-        min_co, max_co = df_all["Check Out Date"].min(), df_all["Check Out Date"].max()
-        checkout_range = st.sidebar.date_input("Check Out Date Range", [min_co, max_co])
-        if len(checkout_range) == 2:
-            df_all = df_all[(df_all["Check Out Date"] >= pd.to_datetime(checkout_range[0])) &
-                            (df_all["Check Out Date"] <= pd.to_datetime(checkout_range[1]))]
+        co_options = df_all["Check Out Date"].dropna().dt.date.unique()
+        co_selected = st.sidebar.selectbox("Pilih Check Out Date", sorted(co_options))
+        df_all = df_all[df_all["Check Out Date"].dt.date == co_selected]
 
+    # Dropdown untuk Direktorat Pekerja
     if "Direktorat Pekerja" in df_all.columns:
-        direktorat_list = df_all["Direktorat Pekerja"].dropna().unique().tolist()
-        selected_direktorat = st.sidebar.multiselect("Direktorat Pekerja", direktorat_list, default=direktorat_list)
-        df_all = df_all[df_all["Direktorat Pekerja"].isin(selected_direktorat)]
+        direktorat_options = df_all["Direktorat Pekerja"].dropna().unique().tolist()
+        direktorat_selected = st.sidebar.selectbox("Pilih Direktorat Pekerja", sorted(direktorat_options))
+        df_all = df_all[df_all["Direktorat Pekerja"] == direktorat_selected]
 
     # --- Data Summary ---
     st.subheader("📊 Data Summary")
-    summary = {
-        "Ukuran Data (rows, cols)": df_all.shape,
-        "Employee Id (unik)": df_all["Employee Id"].nunique() if "Employee Id" in df_all.columns else None,
-        "Direktorat Pekerja (unik)": df_all["Direktorat Pekerja"].nunique() if "Direktorat Pekerja" in df_all.columns else None,
-        "Nama Fungsi (unik)": df_all["Nama Fungsi"].nunique() if "Nama Fungsi" in df_all.columns else None,
-        "Hotel Name (unik)": df_all["Hotel Name"].nunique() if "Hotel Name" in df_all.columns else None,
-        "City (unik)": df_all["City"].nunique() if "City" in df_all.columns else None,
-        "Country (unik)": df_all["Country"].nunique() if "Country" in df_all.columns else None,
-        "Total Number of Rooms Night": df_all["Number of Rooms Night"].sum() if "Number of Rooms Night" in df_all.columns else None,
-    }
-    st.write(pd.DataFrame(summary, index=["Value"]).T)
+    summary_list = [
+        {"Metric": "Ukuran Data (rows, cols)", "Value": f"{df_all.shape[0]} rows, {df_all.shape[1]} cols"},
+        {"Metric": "Employee Id (unik)", "Value": df_all["Employee Id"].nunique() if "Employee Id" in df_all.columns else None},
+        {"Metric": "Direktorat Pekerja (unik)", "Value": df_all["Direktorat Pekerja"].nunique() if "Direktorat Pekerja" in df_all.columns else None},
+        {"Metric": "Nama Fungsi (unik)", "Value": df_all["Nama Fungsi"].nunique() if "Nama Fungsi" in df_all.columns else None},
+        {"Metric": "Hotel Name (unik)", "Value": df_all["Hotel Name"].nunique() if "Hotel Name" in df_all.columns else None},
+        {"Metric": "City (unik)", "Value": df_all["City"].nunique() if "City" in df_all.columns else None},
+        {"Metric": "Country (unik)", "Value": df_all["Country"].nunique() if "Country" in df_all.columns else None},
+        {"Metric": "Total Number of Rooms Night", "Value": df_all["Number of Rooms Night"].sum() if "Number of Rooms Night" in df_all.columns else None},
+    ]
+    st.table(pd.DataFrame(summary_list))
 
     # --- Analisa Tambahan (Time Series) ---
     if "Check In Date" in df_all.columns and "Number of Rooms Night" in df_all.columns:
         st.subheader("📈 Analisa Time Series - Rooms Night per Bulan")
         df_ts = df_all.groupby(df_all["Check In Date"].dt.to_period("M"))["Number of Rooms Night"].sum().reset_index()
         df_ts["Check In Date"] = df_ts["Check In Date"].dt.to_timestamp()
-
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.plot(df_ts["Check In Date"], df_ts["Number of Rooms Night"], marker="o")
-        ax.set_title("Total Rooms Night per Bulan")
-        ax.set_xlabel("Bulan")
-        ax.set_ylabel("Rooms Night")
-        plt.xticks(rotation=45)
-        st.pyplot(fig)
+        st.line_chart(df_ts.set_index("Check In Date"))
 
     # --- Download hasil ---
     st.subheader("⬇️ Download Hasil Gabungan")
