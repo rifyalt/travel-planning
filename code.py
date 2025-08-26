@@ -3,12 +3,12 @@ import pandas as pd
 import gdown
 import os
 from io import BytesIO
-import plotly.express as px
+import matplotlib.pyplot as plt
 
 # --- Konfigurasi halaman ---
-st.set_page_config(page_title="Join & Analisis Data Excel", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Join Data Excel", page_icon="📊", layout="wide")
 
-st.title("📂 Aplikasi Gabung & Analisis Data Excel")
+st.title("📂 Aplikasi Join Data Excel")
 st.write("Pilih salah satu metode input data:")
 
 # --- Sidebar opsi ---
@@ -29,9 +29,7 @@ if mode == "Google Drive Folder":
     if st.button("Download & Gabungkan Data"):
         if gdrive_url:
             try:
-                # Download semua file dari folder
                 gdown.download_folder(url=gdrive_url, output="data_temp", quiet=False, use_cookies=False)
-
                 files = [f for f in os.listdir("data_temp") if f.endswith((".xlsx", ".xls"))]
 
                 if not files:
@@ -41,7 +39,6 @@ if mode == "Google Drive Folder":
                     for f in files:
                         try:
                             df = pd.read_excel(os.path.join("data_temp", f))
-                            # Drop kolom tidak dipakai jika ada
                             df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
                             df_list.append(df)
                         except Exception as e:
@@ -71,121 +68,74 @@ elif mode == "Upload Manual":
             df_all = pd.concat(df_list, ignore_index=True)
             st.success(f"Berhasil gabungkan {len(df_list)} file.")
 
-# --- Filter dan Analisis Data ---
+# --- Preview & Analisis Data ---
 if not df_all.empty:
-    st.sidebar.subheader("🔎 Filter Data")
-
-    # Konversi kolom tanggal jika ada
-    try:
-        if 'Check in Date' in df_all.columns:
-            df_all['Check in Date'] = pd.to_datetime(df_all['Check in Date'])
-        if 'Check Out Date' in df_all.columns:
-            df_all['Check Out Date'] = pd.to_datetime(df_all['Check Out Date'])
-    except Exception as e:
-        st.warning(f"Gagal mengonversi kolom tanggal: {e}")
-
-    # --- Filter Check in Date ---
-    if 'Check in Date' in df_all.columns:
-        min_date = df_all['Check in Date'].min().date()
-        max_date = df_all['Check in Date'].max().date()
-        
-        start_date, end_date = st.sidebar.date_input(
-            "Filter Check in Date:",
-            [min_date, max_date],
-            min_value=min_date,
-            max_value=max_date
-        )
-        df_filtered = df_all[(df_all['Check in Date'].dt.date >= start_date) & (df_all['Check in Date'].dt.date <= end_date)]
-    else:
-        df_filtered = df_all.copy()
-
-    # --- Filter Direktorat Pekerja ---
-    if 'Direktorat Pekerja' in df_all.columns:
-        direktorat_options = df_all['Direktorat Pekerja'].unique().tolist()
-        selected_direktorat = st.sidebar.multiselect(
-            "Filter Direktorat Pekerja:",
-            options=direktorat_options,
-            default=direktorat_options
-        )
-        df_filtered = df_filtered[df_filtered['Direktorat Pekerja'].isin(selected_direktorat)]
-
     st.subheader("👀 Preview Data Gabungan")
-    st.dataframe(df_filtered, use_container_width=True)
+    st.dataframe(df_all.head(50), use_container_width=True)
 
-    # --- Ringkasan Data ---
-    st.subheader("📊 Ringkasan Data")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Ukuran Data
-    with col1:
-        st.metric("Ukuran Data (Rows)", df_filtered.shape[0])
-    
-    # Employee ID Unik
-    if 'Employee ID' in df_filtered.columns:
-        with col2:
-            st.metric("Employee ID Unik", df_filtered['Employee ID'].nunique())
-    
-    # Direktorat Pekerja Unik
-    if 'Direktorat Pekerja' in df_filtered.columns:
-        with col3:
-            st.metric("Direktorat Pekerja Unik", df_filtered['Direktorat Pekerja'].nunique())
-    
-    # Nama Fungsi Unik
-    if 'Nama Fungsi' in df_filtered.columns:
-        with col4:
-            st.metric("Nama Fungsi Unik", df_filtered['Nama Fungsi'].nunique())
-    
-    col5, col6, col7, col8 = st.columns(4)
+    # Pastikan kolom tanggal dalam datetime
+    if "Check In Date" in df_all.columns:
+        df_all["Check In Date"] = pd.to_datetime(df_all["Check In Date"], errors="coerce")
+    if "Check Out Date" in df_all.columns:
+        df_all["Check Out Date"] = pd.to_datetime(df_all["Check Out Date"], errors="coerce")
 
-    # Hotel Name Unik
-    if 'Hotel Name' in df_filtered.columns:
-        with col5:
-            st.metric("Hotel Name Unik", df_filtered['Hotel Name'].nunique())
+    # --- Sidebar Filters ---
+    st.sidebar.header("🔍 Filter Data")
 
-    # City Unik
-    if 'City' in df_filtered.columns:
-        with col6:
-            st.metric("City Unik", df_filtered['City'].nunique())
-    
-    # Country Unik
-    if 'Country' in df_filtered.columns:
-        with col7:
-            st.metric("Country Unik", df_filtered['Country'].nunique())
-    
-    # Total Rooms Night
-    if 'Rooms Night' in df_filtered.columns:
-        with col8:
-            st.metric("Total Rooms Night", int(df_filtered['Rooms Night'].sum()))
-    
-    # --- Analisis Time Series ---
-    st.subheader("📈 Analisis Time Series: Total Rooms Night per Bulan")
-    if 'Check in Date' in df_filtered.columns and 'Rooms Night' in df_filtered.columns:
-        df_ts = df_filtered.copy()
-        df_ts['Tahun-Bulan'] = df_ts['Check in Date'].dt.to_period('M').astype(str)
-        df_monthly = df_ts.groupby('Tahun-Bulan')['Rooms Night'].sum().reset_index()
-        
-        fig = px.line(
-            df_monthly, 
-            x='Tahun-Bulan', 
-            y='Rooms Night', 
-            title='Jumlah Rooms Night dari Waktu ke Waktu',
-            markers=True
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Kolom 'Check in Date' dan 'Rooms Night' tidak ditemukan untuk analisis time series.")
+    if "Check In Date" in df_all.columns:
+        min_ci, max_ci = df_all["Check In Date"].min(), df_all["Check In Date"].max()
+        checkin_range = st.sidebar.date_input("Check In Date Range", [min_ci, max_ci])
+        if len(checkin_range) == 2:
+            df_all = df_all[(df_all["Check In Date"] >= pd.to_datetime(checkin_range[0])) &
+                            (df_all["Check In Date"] <= pd.to_datetime(checkin_range[1]))]
+
+    if "Check Out Date" in df_all.columns:
+        min_co, max_co = df_all["Check Out Date"].min(), df_all["Check Out Date"].max()
+        checkout_range = st.sidebar.date_input("Check Out Date Range", [min_co, max_co])
+        if len(checkout_range) == 2:
+            df_all = df_all[(df_all["Check Out Date"] >= pd.to_datetime(checkout_range[0])) &
+                            (df_all["Check Out Date"] <= pd.to_datetime(checkout_range[1]))]
+
+    if "Direktorat Pekerja" in df_all.columns:
+        direktorat_list = df_all["Direktorat Pekerja"].dropna().unique().tolist()
+        selected_direktorat = st.sidebar.multiselect("Direktorat Pekerja", direktorat_list, default=direktorat_list)
+        df_all = df_all[df_all["Direktorat Pekerja"].isin(selected_direktorat)]
+
+    # --- Data Summary ---
+    st.subheader("📊 Data Summary")
+    summary = {
+        "Ukuran Data (rows, cols)": df_all.shape,
+        "Employee Id (unik)": df_all["Employee Id"].nunique() if "Employee Id" in df_all.columns else None,
+        "Direktorat Pekerja (unik)": df_all["Direktorat Pekerja"].nunique() if "Direktorat Pekerja" in df_all.columns else None,
+        "Nama Fungsi (unik)": df_all["Nama Fungsi"].nunique() if "Nama Fungsi" in df_all.columns else None,
+        "Hotel Name (unik)": df_all["Hotel Name"].nunique() if "Hotel Name" in df_all.columns else None,
+        "City (unik)": df_all["City"].nunique() if "City" in df_all.columns else None,
+        "Country (unik)": df_all["Country"].nunique() if "Country" in df_all.columns else None,
+        "Total Number of Rooms Night": df_all["Number of Rooms Night"].sum() if "Number of Rooms Night" in df_all.columns else None,
+    }
+    st.write(pd.DataFrame(summary, index=["Value"]).T)
+
+    # --- Analisa Tambahan (Time Series) ---
+    if "Check In Date" in df_all.columns and "Number of Rooms Night" in df_all.columns:
+        st.subheader("📈 Analisa Time Series - Rooms Night per Bulan")
+        df_ts = df_all.groupby(df_all["Check In Date"].dt.to_period("M"))["Number of Rooms Night"].sum().reset_index()
+        df_ts["Check In Date"] = df_ts["Check In Date"].dt.to_timestamp()
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(df_ts["Check In Date"], df_ts["Number of Rooms Night"], marker="o")
+        ax.set_title("Total Rooms Night per Bulan")
+        ax.set_xlabel("Bulan")
+        ax.set_ylabel("Rooms Night")
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
 
     # --- Download hasil ---
     st.subheader("⬇️ Download Hasil Gabungan")
-    
-    # Download CSV
     buffer_csv = BytesIO()
-    df_filtered.to_csv(buffer_csv, index=False)
+    df_all.to_csv(buffer_csv, index=False)
     st.download_button("Download CSV", buffer_csv.getvalue(), "gabungan.csv", "text/csv")
 
-    # Download Excel
     buffer_excel = BytesIO()
     with pd.ExcelWriter(buffer_excel, engine="xlsxwriter") as writer:
-        df_filtered.to_excel(writer, index=False, sheet_name="Gabungan")
+        df_all.to_excel(writer, index=False, sheet_name="Gabungan")
     st.download_button("Download Excel", buffer_excel.getvalue(), "gabungan.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
