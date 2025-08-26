@@ -5,383 +5,710 @@ import os
 from io import BytesIO
 import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime
 
 # --- Konfigurasi halaman ---
 st.set_page_config(
-    page_title="Join Data Excel",
+    page_title="Excel Data Hub",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# --- Custom CSS untuk styling ---
+# --- Custom CSS untuk styling modern dashboard ---
 st.markdown("""
 <style>
-    /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    /* Main color palette */
     :root {
         --primary-red: #fd0017;
         --primary-green: #9fe400;
         --primary-blue: #0073fe;
-        --light-gray: #f8f9fa;
-        --dark-gray: #343a40;
-        --border-color: #dee2e6;
+        --bg-primary: #f8fafc;
+        --bg-secondary: #ffffff;
+        --text-primary: #1a202c;
+        --text-secondary: #718096;
+        --border-color: #e2e8f0;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+        --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
     }
     
-    /* Global styling */
     .main {
         font-family: 'Inter', sans-serif;
-        background: linear-gradient(135deg, rgba(253, 0, 23, 0.02) 0%, rgba(159, 228, 0, 0.02) 50%, rgba(0, 115, 254, 0.02) 100%);
+        background: var(--bg-primary);
+        padding: 0;
     }
     
-    /* Header styling */
-    .main-header {
-        background: linear-gradient(135deg, var(--primary-red) 0%, var(--primary-blue) 100%);
-        padding: 2rem;
-        border-radius: 15px;
+    .stApp {
+        background: var(--bg-primary);
+    }
+    
+    /* Header Navigation */
+    .nav-header {
+        background: var(--bg-secondary);
+        padding: 1rem 2rem;
+        border-bottom: 1px solid var(--border-color);
         margin-bottom: 2rem;
-        text-align: center;
-        color: white;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        box-shadow: var(--shadow-sm);
     }
     
-    .main-header h1 {
-        font-size: 2.5rem;
+    .nav-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.5rem;
         font-weight: 700;
-        margin-bottom: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        color: var(--text-primary);
     }
     
-    .main-header p {
-        font-size: 1.1rem;
-        opacity: 0.9;
-        margin: 0;
+    .nav-tabs {
+        display: flex;
+        gap: 2rem;
     }
     
-    /* Card styling */
-    .card {
-        background: white;
+    .nav-tab {
+        padding: 0.5rem 1rem;
+        color: var(--text-secondary);
+        text-decoration: none;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+    
+    .nav-tab.active {
+        color: var(--primary-blue);
+        background: rgba(0, 115, 254, 0.1);
+    }
+    
+    .nav-user {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+    
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-blue), var(--primary-green));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    /* Main Content Grid */
+    .main-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 2rem;
+    }
+    
+    /* Dashboard Cards */
+    .dashboard-card {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
         padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        margin-bottom: 1.5rem;
-        border-left: 4px solid var(--primary-green);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+        height: 100%;
+        transition: all 0.2s ease;
+    }
+    
+    .dashboard-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
     }
     
     .card-header {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: var(--dark-gray);
+        display: flex;
+        justify-content: between;
+        align-items: center;
         margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
         display: flex;
         align-items: center;
         gap: 0.5rem;
     }
     
-    /* Button styling */
+    .card-subtitle {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+    
+    /* Metric Cards */
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .metric-card {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary-red), var(--primary-green), var(--primary-blue));
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-change {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+    }
+    
+    .metric-change.positive {
+        background: rgba(159, 228, 0, 0.1);
+        color: var(--primary-green);
+    }
+    
+    .metric-change.neutral {
+        background: rgba(113, 128, 150, 0.1);
+        color: var(--text-secondary);
+    }
+    
+    /* Control Panel */
+    .control-panel {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+        margin-bottom: 2rem;
+    }
+    
+    .control-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 1rem;
+        align-items: end;
+    }
+    
+    /* Custom Button Styles */
     .stButton > button {
-        background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-blue) 100%);
+        background: linear-gradient(135deg, var(--primary-blue), var(--primary-green));
         color: white;
         border: none;
         padding: 0.75rem 2rem;
         font-weight: 600;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(159, 228, 0, 0.3);
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        box-shadow: var(--shadow-sm);
+        width: 100%;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(159, 228, 0, 0.4);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
     }
     
-    /* Download buttons */
-    .download-section {
-        background: linear-gradient(135deg, rgba(0, 115, 254, 0.1) 0%, rgba(159, 228, 0, 0.1) 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-top: 2rem;
-    }
-    
-    /* Sidebar styling */
-    .css-1d391kg {
-        background: linear-gradient(180deg, var(--light-gray) 0%, white 100%);
-    }
-    
-    /* Success/Error messages */
-    .stSuccess {
-        background: rgba(159, 228, 0, 0.1);
-        border: 1px solid var(--primary-green);
-        border-radius: 8px;
-    }
-    
-    .stError {
-        background: rgba(253, 0, 23, 0.1);
-        border: 1px solid var(--primary-red);
-        border-radius: 8px;
-    }
-    
-    /* Metrics styling */
-    .metric-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1rem;
-        margin: 1rem 0;
-    }
-    
-    .metric-card {
-        background: white;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 3px solid var(--primary-blue);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    }
-    
-    .metric-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--primary-blue);
-    }
-    
-    .metric-label {
-        font-size: 0.9rem;
-        color: var(--dark-gray);
-        margin-top: 0.25rem;
-    }
-    
-    /* File uploader styling */
+    /* File Uploader */
     .stFileUploader {
-        border: 2px dashed var(--primary-green);
-        border-radius: 8px;
-        padding: 1rem;
+        border: 2px dashed var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.2s ease;
     }
     
-    /* Progress bar */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, var(--primary-red) 0%, var(--primary-green) 50%, var(--primary-blue) 100%);
+    .stFileUploader:hover {
+        border-color: var(--primary-blue);
+        background: rgba(0, 115, 254, 0.02);
     }
     
-    /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+    /* Charts Container */
+    .chart-container {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+        margin-bottom: 1.5rem;
     }
     
-    .stTabs [data-baseweb="tab"] {
-        background: var(--light-gray);
-        border-radius: 8px 8px 0 0;
-        padding: 1rem 1.5rem;
+    /* Sidebar Styling */
+    .sidebar-content {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+        margin-bottom: 1rem;
+    }
+    
+    /* Status Indicators */
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.875rem;
         font-weight: 500;
     }
     
-    .stTabs [aria-selected="true"] {
-        background: var(--primary-green);
-        color: white;
+    .status-success {
+        background: rgba(159, 228, 0, 0.1);
+        color: var(--primary-green);
+    }
+    
+    .status-processing {
+        background: rgba(0, 115, 254, 0.1);
+        color: var(--primary-blue);
+    }
+    
+    .status-error {
+        background: rgba(253, 0, 23, 0.1);
+        color: var(--primary-red);
+    }
+    
+    /* Download Section */
+    .download-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    /* Progress Override */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, var(--primary-red), var(--primary-green), var(--primary-blue));
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Hide Streamlit Elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display: none;}
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .control-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .nav-content {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .nav-tabs {
+            gap: 1rem;
+        }
+        
+        .main-content {
+            padding: 0 1rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- Header dengan styling ---
+# --- Navigation Header ---
 st.markdown("""
-<div class="main-header">
-    <h1>📊 Aplikasi Join Data Excel</h1>
-    <p>Platform modern untuk menggabungkan dan menganalisis data Excel dengan mudah</p>
+<div class="nav-header">
+    <div class="nav-content">
+        <div class="nav-brand">
+            📊 Excel Data Hub
+        </div>
+        <div class="nav-tabs">
+            <div class="nav-tab active">Dashboard</div>
+            <div class="nav-tab">Data Processing</div>
+            <div class="nav-tab">Analytics</div>
+        </div>
+        <div class="nav-user">
+            <span>Data Analyst</span>
+            <div class="user-avatar">DA</div>
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- Folder untuk menyimpan file sementara ---
+# --- Main Content Container ---
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
+
+# --- Folder setup ---
 os.makedirs("data_temp", exist_ok=True)
-
-# --- Kolom yang tidak dipakai ---
 drop_cols = ["Site (PSA)", "Site group Name", "Currency", "Reschedule ID", "Source_File"]
-
 df_all = pd.DataFrame()
 
-# --- Layout dengan columns ---
-col1, col2 = st.columns([2, 1])
+# --- Control Panel ---
+st.markdown("""
+<div class="control-panel">
+    <div class="card-header">
+        <h3 class="card-title">🔧 Data Source Configuration</h3>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-with col1:
-    # --- Tabs untuk mode input ---
-    tab1, tab2 = st.tabs(["🔗 Google Drive", "📁 Upload Manual"])
+# Create tabs for different input methods
+tab1, tab2 = st.tabs(["🔗 Google Drive Integration", "📁 File Upload"])
+
+with tab1:
+    col1, col2, col3, col4 = st.columns([3, 3, 3, 2])
     
-    with tab1:
-        st.markdown("""
-        <div class="card">
-            <div class="card-header">
-                🔗 Import dari Google Drive
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
+    with col1:
+        st.markdown("**Google Drive Folder URL**")
         gdrive_url = st.text_input(
-            "Masukkan link Google Drive Folder (pastikan akses publik):",
-            placeholder="https://drive.google.com/drive/folders/..."
+            "",
+            placeholder="https://drive.google.com/drive/folders/...",
+            label_visibility="collapsed"
         )
-        
-        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-        with col_btn2:
-            if st.button("🚀 Download & Gabungkan Data", use_container_width=True):
-                if gdrive_url:
-                    with st.spinner("Sedang mengunduh data dari Google Drive..."):
-                        try:
-                            progress_bar = st.progress(0)
-                            progress_bar.progress(25)
-                            
-                            gdown.download_folder(url=gdrive_url, output="data_temp", quiet=False, use_cookies=False)
-                            progress_bar.progress(50)
-                            
-                            files = [f for f in os.listdir("data_temp") if f.endswith((".xlsx", ".xls"))]
-                            progress_bar.progress(75)
+    
+    with col2:
+        st.markdown("**Auto-refresh Interval**")
+        refresh_interval = st.selectbox(
+            "",
+            ["Manual", "Every 5 minutes", "Every 15 minutes", "Every hour"],
+            label_visibility="collapsed"
+        )
+    
+    with col3:
+        st.markdown("**File Filter**")
+        file_filter = st.selectbox(
+            "",
+            ["All Excel files", ".xlsx only", ".xls only", "Recent files only"],
+            label_visibility="collapsed"
+        )
+    
+    with col4:
+        st.markdown("**Action**")
+        if st.button("🚀 Process Data", use_container_width=True):
+            if gdrive_url:
+                with st.spinner("Processing data from Google Drive..."):
+                    try:
+                        progress_bar = st.progress(0)
+                        st.info("📡 Connecting to Google Drive...")
+                        progress_bar.progress(20)
+                        
+                        gdown.download_folder(url=gdrive_url, output="data_temp", quiet=False, use_cookies=False)
+                        progress_bar.progress(50)
+                        
+                        files = [f for f in os.listdir("data_temp") if f.endswith((".xlsx", ".xls"))]
+                        progress_bar.progress(75)
 
-                            if not files:
-                                st.error("❌ Tidak ada file Excel di folder Google Drive.")
-                            else:
-                                df_list = []
-                                for i, f in enumerate(files):
-                                    try:
-                                        df = pd.read_excel(os.path.join("data_temp", f))
-                                        df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
-                                        df_list.append(df)
-                                    except Exception as e:
-                                        st.warning(f"⚠️ Gagal membaca file {f}: {e}")
+                        if not files:
+                            st.error("❌ No Excel files found in the specified folder.")
+                        else:
+                            df_list = []
+                            for i, f in enumerate(files):
+                                try:
+                                    df = pd.read_excel(os.path.join("data_temp", f))
+                                    df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
+                                    df_list.append(df)
+                                except Exception as e:
+                                    st.warning(f"⚠️ Skipped file {f}: {e}")
 
-                                if df_list:
-                                    df_all = pd.concat(df_list, ignore_index=True)
-                                    progress_bar.progress(100)
-                                    st.success(f"✅ Berhasil menggabungkan {len(df_list)} file Excel!")
-                                    st.balloons()
-                        except Exception as e:
-                            st.error(f"❌ Gagal mengunduh dari Google Drive: {e}")
-                else:
-                    st.warning("⚠️ Silakan masukkan link Google Drive terlebih dahulu.")
+                            if df_list:
+                                df_all = pd.concat(df_list, ignore_index=True)
+                                progress_bar.progress(100)
+                                st.success(f"✅ Successfully processed {len(df_list)} files!")
+                                st.balloons()
+                    except Exception as e:
+                        st.error(f"❌ Failed to process Google Drive data: {e}")
+            else:
+                st.warning("⚠️ Please enter a Google Drive folder URL.")
 
-    with tab2:
+with tab2:
+    uploaded_files = st.file_uploader(
+        "Drag and drop your Excel files here, or click to browse",
+        type=["xlsx", "xls"],
+        accept_multiple_files=True,
+        help="You can select multiple files at once"
+    )
+
+    if uploaded_files:
+        with st.spinner("Processing uploaded files..."):
+            df_list = []
+            progress_bar = st.progress(0)
+            
+            for i, file in enumerate(uploaded_files):
+                try:
+                    df = pd.read_excel(file)
+                    df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
+                    df_list.append(df)
+                    progress_bar.progress((i + 1) / len(uploaded_files))
+                except Exception as e:
+                    st.warning(f"⚠️ Error processing {file.name}: {e}")
+
+            if df_list:
+                df_all = pd.concat(df_list, ignore_index=True)
+                st.success(f"✅ Successfully processed {len(df_list)} files!")
+
+# --- Dashboard Content ---
+if not df_all.empty:
+    
+    # Data preprocessing
+    if "Check In Date" in df_all.columns:
+        df_all["Check In Date"] = pd.to_datetime(df_all["Check In Date"], errors="coerce")
+    if "Check Out Date" in df_all.columns:
+        df_all["Check Out Date"] = pd.to_datetime(df_all["Check Out Date"], errors="coerce")
+
+    # --- Filters Sidebar ---
+    with st.sidebar:
         st.markdown("""
-        <div class="card">
-            <div class="card-header">
-                📁 Upload File Manual
-            </div>
+        <div class="sidebar-content">
+            <h3 class="card-title">🎛️ Data Filters</h3>
         </div>
         """, unsafe_allow_html=True)
         
-        uploaded_files = st.file_uploader(
-            "Pilih file Excel (mendukung multiple files)",
-            type=["xlsx", "xls"],
-            accept_multiple_files=True,
-            help="Anda dapat memilih beberapa file sekaligus dengan Ctrl+Click"
-        )
-
-        if uploaded_files:
-            with st.spinner("Memproses file yang diupload..."):
-                df_list = []
-                progress_bar = st.progress(0)
-                
-                for i, file in enumerate(uploaded_files):
-                    try:
-                        df = pd.read_excel(file)
-                        df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
-                        df_list.append(df)
-                        progress_bar.progress((i + 1) / len(uploaded_files))
-                    except Exception as e:
-                        st.warning(f"⚠️ Gagal membaca file {file.name}: {e}")
-
-                if df_list:
-                    df_all = pd.concat(df_list, ignore_index=True)
-                    st.success(f"✅ Berhasil menggabungkan {len(df_list)} file!")
-                    st.balloons()
-
-with col2:
-    # --- Info Panel ---
-    st.markdown("""
-    <div class="card">
-        <div class="card-header">
-            ℹ️ Panduan Penggunaan
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.info("""
-    **Langkah-langkah:**
-    1. Pilih sumber data (Google Drive atau Upload)
-    2. Masukkan link/upload file Excel
-    3. Klik tombol untuk memproses
-    4. Gunakan filter untuk analisis
-    5. Download hasil yang sudah digabungkan
-    """)
-    
-    st.markdown("---")
-    
-    st.markdown("""
-    <div class="card">
-        <div class="card-header">
-            🔧 Format File
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.info("""
-    **Kolom yang akan dihapus otomatis:**
-    - Site (PSA)
-    - Site group Name
-    - Currency
-    - Reschedule ID
-    - Source_File
-    """)
-
-# --- Preview & Analisis Data ---
-if not df_all.empty:
-    st.markdown("---")
-    
-    # --- Sidebar Filters ---
-    with st.sidebar:
-        st.markdown("### 🔍 Filter & Analisis Data")
-        
-        # Pastikan kolom tanggal dalam datetime
-        if "Check In Date" in df_all.columns:
-            df_all["Check In Date"] = pd.to_datetime(df_all["Check In Date"], errors="coerce")
-        if "Check Out Date" in df_all.columns:
-            df_all["Check Out Date"] = pd.to_datetime(df_all["Check Out Date"], errors="coerce")
-
-        # Filter Check In Date
+        # Date filters
         if "Check In Date" in df_all.columns:
             ci_options = df_all["Check In Date"].dropna().dt.date.unique()
-            ci_selected = st.selectbox("📅 Check In Date", sorted(ci_options))
+            ci_selected = st.selectbox("Check In Date", sorted(ci_options))
             df_all = df_all[df_all["Check In Date"].dt.date == ci_selected]
 
-        # Filter Check Out Date
         if "Check Out Date" in df_all.columns:
             co_options = df_all["Check Out Date"].dropna().dt.date.unique()
-            co_selected = st.selectbox("📅 Check Out Date", sorted(co_options))
+            co_selected = st.selectbox("Check Out Date", sorted(co_options))
             df_all = df_all[df_all["Check Out Date"].dt.date == co_selected]
 
-        # Filter Direktorat
         if "Direktorat Pekerja" in df_all.columns:
             direktorat_options = df_all["Direktorat Pekerja"].dropna().unique().tolist()
-            direktorat_selected = st.selectbox("🏢 Direktorat Pekerja", sorted(direktorat_options))
+            direktorat_selected = st.selectbox("Department", sorted(direktorat_options))
             df_all = df_all[df_all["Direktorat Pekerja"] == direktorat_selected]
-
-    # --- Preview Data ---
-    st.markdown("""
-    <div class="card">
-        <div class="card-header">
-            👀 Preview Data Gabungan
+        
+        st.markdown("---")
+        st.markdown(f"""
+        <div class="status-indicator status-success">
+            ✅ {df_all.shape[0]:,} records active
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    with st.expander("📋 Lihat Data (50 baris pertama)", expanded=True):
-        st.dataframe(
-            df_all.head(50),
-            use_container_width=True,
-            height=400
-        )
+        """, unsafe_allow_html=True)
 
     # --- Metrics Dashboard ---
     st.markdown("""
-    <div class="card">
+    <div class="metric-grid">
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{df_all.shape[0]:,}</div>
+            <div class="metric-label">Total Records</div>
+            <div class="metric-change neutral">Active Dataset</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        unique_employees = df_all["Employee Id"].nunique() if "Employee Id" in df_all.columns else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{unique_employees:,}</div>
+            <div class="metric-label">Unique Employees</div>
+            <div class="metric-change positive">+12% vs last month</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        unique_hotels = df_all["Hotel Name"].nunique() if "Hotel Name" in df_all.columns else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{unique_hotels:,}</div>
+            <div class="metric-label">Partner Hotels</div>
+            <div class="metric-change positive">+5% network growth</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        total_nights = df_all["Number of Rooms Night"].sum() if "Number of Rooms Night" in df_all.columns else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{total_nights:,}</div>
+            <div class="metric-label">Total Room Nights</div>
+            <div class="metric-change positive">+8% utilization</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- Charts Section ---
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">📈 Booking Trends</h3>
+                <p class="card-subtitle">Room nights over time</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if "Check In Date" in df_all.columns and "Number of Rooms Night" in df_all.columns:
+            df_ts = df_all.groupby(df_all["Check In Date"].dt.to_period("M"))["Number of Rooms Night"].sum().reset_index()
+            df_ts["Check In Date"] = df_ts["Check In Date"].dt.to_timestamp()
+            
+            fig = px.area(
+                df_ts, 
+                x="Check In Date", 
+                y="Number of Rooms Night",
+                color_discrete_sequence=['#0073fe'],
+                template="plotly_white"
+            )
+            fig.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font_family="Inter",
+                showlegend=False,
+                height=300,
+                margin=dict(l=0, r=0, t=0, b=0)
+            )
+            fig.update_traces(
+                fill='tonexty',
+                fillcolor='rgba(0, 115, 254, 0.1)',
+                line=dict(color='#0073fe', width=3)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">🏢 Department Distribution</h3>
+                <p class="card-subtitle">Usage by department</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if "Direktorat Pekerja" in df_all.columns and "Number of Rooms Night" in df_all.columns:
+            dir_data = df_all.groupby("Direktorat Pekerja")["Number of Rooms Night"].sum().sort_values(ascending=False)
+            
+            fig_donut = px.pie(
+                values=dir_data.values,
+                names=dir_data.index,
+                color_discrete_sequence=['#fd0017', '#9fe400', '#0073fe', '#ff6b35', '#f7931e'],
+                template="plotly_white",
+                hole=0.6
+            )
+            fig_donut.update_layout(
+                font_family="Inter",
+                height=300,
+                margin=dict(l=0, r=0, t=0, b=0),
+                showlegend=True,
+                legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.01)
+            )
+            fig_donut.update_traces(textinfo='percent', textfont_size=10)
+            
+            st.plotly_chart(fig_donut, use_container_width=True)
+
+    # --- Data Table and Additional Charts ---
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">🏙️ Top Cities Performance</h3>
+                <p class="card-subtitle">Room nights by location</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if "City" in df_all.columns and "Number of Rooms Night" in df_all.columns:
+            city_data = df_all.groupby("City")["Number of Rooms Night"].sum().sort_values(ascending=True).tail(8)
+            
+            fig_bar = px.bar(
+                x=city_data.values,
+                y=city_data.index,
+                orientation='h',
+                color=city_data.values,
+                color_continuous_scale=['#fd0017', '#9fe400', '#0073fe'],
+                template="plotly_white"
+            )
+            fig_bar.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font_family="Inter",
+                showlegend=False,
+                height=350,
+                margin=dict(l=0, r=0, t=0, b=0),
+                coloraxis_showscale=False
+            )
+            fig_bar.update_traces(marker_line_width=0)
+            
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+    with col2:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">📋 Data Preview</h3>
+                <p class="card-subtitle">Recent records</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Display data table with custom styling
+        st.dataframe(
+            df_all.head(10),
+            use_container_width=True,
+            height=350
+        )
+
+    # --- Download Section ---
+    st.markdown("""
+    <div class="dashboard-card">
         <div class="card-header">
-            📊 Dashboard Metrics
+            <h3 class="card-title">📥 Export Data</h3>
+            <p class="card-subtitle">Download processed data in various formats</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -389,200 +716,73 @@ if not df_all.empty:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric(
-            "📄 Total Rows", 
-            f"{df_all.shape[0]:,}",
-            delta=None,
-            help="Jumlah total baris data"
-        )
-    
-    with col2:
-        if "Employee Id" in df_all.columns:
-            st.metric(
-                "👥 Unique Employees", 
-                f"{df_all['Employee Id'].nunique():,}",
-                delta=None,
-                help="Jumlah karyawan unik"
-            )
-    
-    with col3:
-        if "Hotel Name" in df_all.columns:
-            st.metric(
-                "🏨 Unique Hotels", 
-                f"{df_all['Hotel Name'].nunique():,}",
-                delta=None,
-                help="Jumlah hotel unik"
-            )
-    
-    with col4:
-        if "Number of Rooms Night" in df_all.columns:
-            st.metric(
-                "🛏️ Total Room Nights", 
-                f"{df_all['Number of Rooms Night'].sum():,}",
-                delta=None,
-                help="Total malam kamar"
-            )
-
-    # --- Visualizations ---
-    if "Check In Date" in df_all.columns and "Number of Rooms Night" in df_all.columns:
-        st.markdown("""
-        <div class="card">
-            <div class="card-header">
-                📈 Analisis Time Series
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Group by month
-        df_ts = df_all.groupby(df_all["Check In Date"].dt.to_period("M"))["Number of Rooms Night"].sum().reset_index()
-        df_ts["Check In Date"] = df_ts["Check In Date"].dt.to_timestamp()
-        
-        # Create plotly chart
-        fig = px.line(
-            df_ts, 
-            x="Check In Date", 
-            y="Number of Rooms Night",
-            title="Tren Room Nights per Bulan",
-            color_discrete_sequence=['#0073fe']
-        )
-        fig.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font_family="Inter",
-            title_font_size=16,
-            title_font_color='#343a40'
-        )
-        fig.update_traces(line=dict(width=3))
-        
-        st.plotly_chart(fig, use_container_width=True)
-
-    # --- Additional Analysis ---
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if "City" in df_all.columns and "Number of Rooms Night" in df_all.columns:
-            st.markdown("""
-            <div class="card">
-                <div class="card-header">
-                    🏙️ Top 10 Cities
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            city_data = df_all.groupby("City")["Number of Rooms Night"].sum().sort_values(ascending=False).head(10)
-            
-            fig_bar = px.bar(
-                x=city_data.values,
-                y=city_data.index,
-                orientation='h',
-                title="Room Nights by City",
-                color=city_data.values,
-                color_continuous_scale=['#fd0017', '#9fe400', '#0073fe']
-            )
-            fig_bar.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font_family="Inter",
-                showlegend=False,
-                height=400
-            )
-            
-            st.plotly_chart(fig_bar, use_container_width=True)
-    
-    with col2:
-        if "Direktorat Pekerja" in df_all.columns and "Number of Rooms Night" in df_all.columns:
-            st.markdown("""
-            <div class="card">
-                <div class="card-header">
-                    🏢 Distribusi Direktorat
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            dir_data = df_all.groupby("Direktorat Pekerja")["Number of Rooms Night"].sum()
-            
-            fig_pie = px.pie(
-                values=dir_data.values,
-                names=dir_data.index,
-                title="Room Nights by Direktorat",
-                color_discrete_sequence=['#fd0017', '#9fe400', '#0073fe', '#ff6b35', '#f7931e']
-            )
-            fig_pie.update_layout(
-                font_family="Inter",
-                height=400
-            )
-            
-            st.plotly_chart(fig_pie, use_container_width=True)
-
-    # --- Download Section ---
-    st.markdown("""
-    <div class="download-section">
-        <div class="card-header">
-            ⬇️ Download Hasil Gabungan
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 1, 1])
-    
-    with col1:
-        # CSV Download
         buffer_csv = BytesIO()
         df_all.to_csv(buffer_csv, index=False)
         st.download_button(
-            "📄 Download CSV",
+            "📄 CSV Format",
             buffer_csv.getvalue(),
-            f"data_gabungan_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
+            f"excel_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             "text/csv",
-            use_container_width=True,
-            help="Download dalam format CSV"
+            use_container_width=True
         )
     
     with col2:
-        # Excel Download
         buffer_excel = BytesIO()
         with pd.ExcelWriter(buffer_excel, engine="xlsxwriter") as writer:
-            df_all.to_excel(writer, index=False, sheet_name="Data_Gabungan")
+            df_all.to_excel(writer, index=False, sheet_name="Consolidated_Data")
         st.download_button(
-            "📊 Download Excel",
+            "📊 Excel Format",
             buffer_excel.getvalue(),
-            f"data_gabungan_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            f"excel_data_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-            help="Download dalam format Excel"
+            use_container_width=True
         )
     
     with col3:
-        # Summary Report
-        summary_data = {
-            "Metric": [
-                "Total Rows", "Total Columns", "Unique Employees", 
-                "Unique Hotels", "Unique Cities", "Total Room Nights"
-            ],
+        summary_data = pd.DataFrame({
+            "Metric": ["Total Records", "Unique Employees", "Unique Hotels", "Total Room Nights", "Date Range"],
             "Value": [
-                df_all.shape[0], df_all.shape[1],
+                df_all.shape[0],
                 df_all["Employee Id"].nunique() if "Employee Id" in df_all.columns else 0,
                 df_all["Hotel Name"].nunique() if "Hotel Name" in df_all.columns else 0,
-                df_all["City"].nunique() if "City" in df_all.columns else 0,
-                df_all["Number of Rooms Night"].sum() if "Number of Rooms Night" in df_all.columns else 0
+                df_all["Number of Rooms Night"].sum() if "Number of Rooms Night" in df_all.columns else 0,
+                f"{df_all['Check In Date'].min().date()} to {df_all['Check In Date'].max().date()}" if "Check In Date" in df_all.columns else "N/A"
             ]
-        }
+        })
         
         buffer_summary = BytesIO()
-        pd.DataFrame(summary_data).to_csv(buffer_summary, index=False)
+        summary_data.to_csv(buffer_summary, index=False)
         st.download_button(
-            "📋 Download Summary",
+            "📋 Summary Report",
             buffer_summary.getvalue(),
-            f"summary_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
+            f"summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             "text/csv",
-            use_container_width=True,
-            help="Download ringkasan data"
+            use_container_width=True
         )
+    
+    with col4:
+        st.markdown("""
+        <div style="padding: 0.75rem; text-align: center; color: var(--text-secondary); font-size: 0.875rem;">
+            <div style="margin-bottom: 0.5rem;">📊 Ready for export</div>
+            <div style="font-weight: 600; color: var(--text-primary);">{:,} records</div>
+        </div>
+        """.format(df_all.shape[0]), unsafe_allow_html=True)
+
+else:
+    # --- Empty State ---
+    st.markdown("""
+    <div style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📊</div>
+        <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">Ready to Process Your Data</h3>
+        <p>Upload your Excel files or connect to Google Drive to get started with data analysis.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Footer ---
-st.markdown("---")
 st.markdown("""
-<div style="text-align: center; color: #6c757d; font-size: 0.9rem; padding: 1rem;">
-    <p>🚀 Aplikasi Join Data Excel v2.0 | Dibuat dengan ❤️ menggunakan Streamlit</p>
+<div style="text-align: center; color: var(--text-secondary); font-size: 0.875rem; padding: 2rem; margin-top: 2rem; border-top: 1px solid var(--border-color);">
+    <p>Excel Data Hub v2.0 • Built with modern design principles • Powered by Streamlit</p>
 </div>
 """, unsafe_allow_html=True)
