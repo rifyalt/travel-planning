@@ -18,7 +18,7 @@ mode = st.sidebar.radio("Pilih sumber data:", ["Google Drive Folder", "Upload Ma
 os.makedirs("data_temp", exist_ok=True)
 
 # --- Kolom yang tidak dipakai ---
-drop_cols = ["Site (PSA)", "Site group Name", "Currency", "Reschedule ID", "Source_File"]
+drop_cols = ["No Trip SAP","Cost Center Pekerja","Site (PSA)", "Site group Name", "Currency", "Reschedule ID", "Source_File"]
 
 df_all = pd.DataFrame()
 
@@ -145,3 +145,4 @@ if not df_all.empty:
     with pd.ExcelWriter(buffer_excel, engine="xlsxwriter") as writer:
         df_all.to_excel(writer, index=False, sheet_name="Gabungan")
     st.download_button("Download Excel", buffer_excel.getvalue(), "gabungan.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
