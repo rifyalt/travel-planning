@@ -106,18 +106,40 @@ if not df_all.empty:
             df_all = df_all[df_all["Direktorat Pekerja"] == direktorat_selected]
 
     # --- Data Summary ---
+    
     st.subheader("📊 Data Summary")
+
     summary_list = [
-        {"Metric": "Ukuran Data (rows, cols)", "Value": f"{df_all.shape[0]} rows, {df_all.shape[1]} cols"},
-        {"Metric": "Employee Id (unik)", "Value": df_all["Employee Id"].nunique() if "Employee Id" in df_all.columns else None},
-        {"Metric": "Direktorat Pekerja (unik)", "Value": df_all["Direktorat Pekerja"].nunique() if "Direktorat Pekerja" in df_all.columns else None},
-        {"Metric": "Nama Fungsi (unik)", "Value": df_all["Nama Fungsi"].nunique() if "Nama Fungsi" in df_all.columns else None},
-        {"Metric": "Hotel Name (unik)", "Value": df_all["Hotel Name"].nunique() if "Hotel Name" in df_all.columns else None},
-        {"Metric": "City (unik)", "Value": df_all["City"].nunique() if "City" in df_all.columns else None},
-        {"Metric": "Country (unik)", "Value": df_all["Country"].nunique() if "Country" in df_all.columns else None},
-        {"Metric": "Total Number of Rooms Night", "Value": df_all["Number of Rooms Night"].sum() if "Number of Rooms Night" in df_all.columns else None},
+        {"Metric": "Ukuran Data", "Value": f"{df_all.shape[0]} rows, {df_all.shape[1]} cols"},
+        {"Metric": "Employee Id (unik)", "Value": df_all["Employee Id"].nunique() if "Employee Id" in df_all.columns else 0},
+        {"Metric": "Direktorat Pekerja (unik)", "Value": df_all["Direktorat Pekerja"].nunique() if "Direktorat Pekerja" in df_all.columns else 0},
+        {"Metric": "Nama Fungsi (unik)", "Value": df_all["Nama Fungsi"].nunique() if "Nama Fungsi" in df_all.columns else 0},
+        {"Metric": "Hotel Name (unik)", "Value": df_all["Hotel Name"].nunique() if "Hotel Name" in df_all.columns else 0},
+        {"Metric": "City (unik)", "Value": df_all["City"].nunique() if "City" in df_all.columns else 0},
+        {"Metric": "Country (unik)", "Value": df_all["Country"].nunique() if "Country" in df_all.columns else 0},
+        {"Metric": "Total Rooms Night", "Value": int(df_all["Number of Rooms Night"].sum()) if "Number of Rooms Night" in df_all.columns else 0},
     ]
-    st.table(pd.DataFrame(summary_list))
+
+    # Grid kolom untuk score cards
+    cols = st.columns(4)  # tampil 4 per baris
+    for i, item in enumerate(summary_list):
+        with cols[i % 4]:
+            st.markdown(
+                f"""
+                <div style="
+                    background: linear-gradient(135deg, #4F46E5, #3B82F6);
+                    padding: 15px;
+                    border-radius: 15px;
+                    text-align: center;
+                    color: white;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                    margin-bottom: 15px;">
+                    <h4 style="margin: 0; font-size: 16px;">{item['Metric']}</h4>
+                    <p style="margin: 5px 0 0; font-size: 22px; font-weight: bold;">{item['Value']}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     # --- Analisa Tambahan (Time Series) ---
     if "Check In Date" in df_all.columns and "Number of Rooms Night" in df_all.columns:
@@ -145,4 +167,5 @@ if not df_all.empty:
     with pd.ExcelWriter(buffer_excel, engine="xlsxwriter") as writer:
         df_all.to_excel(writer, index=False, sheet_name="Gabungan")
     st.download_button("Download Excel", buffer_excel.getvalue(), "gabungan.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
