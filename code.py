@@ -71,7 +71,7 @@ elif mode == "Upload Manual":
 # --- Preview & Analisis Data ---
 if not df_all.empty:
     st.subheader("👀 Preview Data Gabungan")
-    st.dataframe(df_all, use_container_width=True)
+    st.dataframe(df_all.head(25), use_container_width=True)
 
     # --- Konversi tanggal dengan dayfirst ---
     date_columns = ["Check In Date", "Check Out Date"]
