@@ -71,7 +71,7 @@ elif mode == "Upload Manual":
 # --- Preview & Analisis Data ---
 if not df_all.empty:
     st.subheader("👀 Preview Data Gabungan")
-    st.dataframe(df_all.head(50), use_container_width=True)
+    st.dataframe(df_all, use_container_width=True)
 
     # --- Konversi tanggal dengan dayfirst ---
     date_columns = ["Check In Date", "Check Out Date"]
@@ -167,5 +167,6 @@ if not df_all.empty:
     with pd.ExcelWriter(buffer_excel, engine="xlsxwriter") as writer:
         df_all.to_excel(writer, index=False, sheet_name="Gabungan")
     st.download_button("Download Excel", buffer_excel.getvalue(), "gabungan.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
